@@ -1,0 +1,43 @@
+name: Remove node_modules and add .gitignore
+on:
+  workflow_dispatch: {}
+
+jobs:
+  remove-node-modules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Ensure .gitignore has node_modules
+        run: |
+          if [ ! -f .gitignore ]; then
+            echo "node_modules/" > .gitignore
+          else
+            grep -qxF "node_modules/" .gitignore || echo "node_modules/" >> .gitignore
+          fi
+
+      - name: Remove node_modules from index (cached) and filesystem
+        run: |
+          # remove from git index if present (won't fail if not present)
+          git rm -r --cached node_modules || true
+          # also remove any leftover node_modules files in the workspace so commit reflects deletion
+          rm -rf node_modules || true
+
+      - name: Commit & push changes
+        run: |
+          git add .gitignore
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Remove node_modules from repo and add to .gitignore"
+            git push origin HEAD:$(git rev-parse --abbrev-ref HEAD)
+          fi
