@@ -1,43 +1,33 @@
-name: Remove node_modules and add .gitignore
+name: Remove node_modules
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  remove-node-modules:
+  cleanup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
 
-      - name: Configure git user
+      - name: Setup git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Ensure .gitignore has node_modules
+      - name: Add node_modules to .gitignore
         run: |
-          if [ ! -f .gitignore ]; then
-            echo "node_modules/" > .gitignore
-          else
-            grep -qxF "node_modules/" .gitignore || echo "node_modules/" >> .gitignore
-          fi
+          echo "node_modules/" >> .gitignore
 
-      - name: Remove node_modules from index (cached) and filesystem
+      - name: Remove node_modules from repo
         run: |
-          # remove from git index if present (won't fail if not present)
           git rm -r --cached node_modules || true
-          # also remove any leftover node_modules files in the workspace so commit reflects deletion
           rm -rf node_modules || true
 
-      - name: Commit & push changes
+      - name: Commit and Push
         run: |
           git add .gitignore
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Remove node_modules from repo and add to .gitignore"
-            git push origin HEAD:$(git rev-parse --abbrev-ref HEAD)
-          fi
+          git commit -m "Remove node_modules and update .gitignore" || echo "No changes to commit"
+          git push
